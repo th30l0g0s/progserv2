@@ -1,0 +1,66 @@
+services:
+  # Apache + PHP 8.5 (un seul conteneur)
+  web:
+    build: ./docker/php
+    container_name: web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  # Base de données MariaDB (accessible uniquement par les autres conteneurs)
+  db:
+    image: mariadb:11.4
+    container_name: db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Interface web de la BDD
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: phpmyadmin
+    ports:
+      - "9090:80"
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Serveur SMTP de test : SMTP sur 1025 (interne), interface web sur 8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+
+volumes:
+  db_data:
