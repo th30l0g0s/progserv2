@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./src:/var/www/html
+      - ./public:/var/www/html
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
