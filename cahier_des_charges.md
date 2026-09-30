@@ -1,4 +1,4 @@
-# site4night
+# site4night - Cahier des charges
 
 > Projet réalisé dans le cadre du cours _Programmation serveur 2 (ProgServ2)_ à la [HEIG-VD](https://heig-vd.ch/), année académique 2026-2027.
 
