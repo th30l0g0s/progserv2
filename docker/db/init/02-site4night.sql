@@ -1,9 +1,6 @@
--- =====================================================================
--- site4night – MPD (MariaDB) + données de test
--- Exécuté automatiquement à la première création du conteneur "db"
--- (docker/db/init est monté dans /docker-entrypoint-initdb.d).
--- Mot de passe de tous les comptes de test : Password123!
--- =====================================================================
+-- ================================================================
+-- site4night, MPD (MariaDB) + données de test
+-- ===============================================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -13,9 +10,8 @@ DROP TABLE IF EXISTS spot_amenities, spot_accommodation_types, favorites, review
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- ---------------------------------------------------------------------
 -- Tables
--- ---------------------------------------------------------------------
+
 
 CREATE TABLE users (
     id                 INT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -32,28 +28,28 @@ CREATE TABLE users (
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT uq_users_confirmation_token UNIQUE (confirmation_token)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE cantons (
     code CHAR(2)     NOT NULL,
     name VARCHAR(50) NOT NULL,
     CONSTRAINT pk_cantons PRIMARY KEY (code),
     CONSTRAINT uq_cantons_name UNIQUE (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE access_types (
     id   TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
     code VARCHAR(30)      NOT NULL,
     CONSTRAINT pk_access_types PRIMARY KEY (id),
     CONSTRAINT uq_access_types_code UNIQUE (code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE accommodation_types (
     id   TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
     code VARCHAR(30)      NOT NULL,
     CONSTRAINT pk_accommodation_types PRIMARY KEY (id),
     CONSTRAINT uq_accommodation_types_code UNIQUE (code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE amenities (
     id   TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -87,7 +83,7 @@ CREATE TABLE spots (
     CONSTRAINT fk_spots_access_type FOREIGN KEY (access_type_id)
         REFERENCES access_types (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     INDEX idx_spots_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE reviews (
     id         INT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -104,7 +100,7 @@ CREATE TABLE reviews (
         REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_reviews_spot FOREIGN KEY (spot_id)
         REFERENCES spots (id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE favorites (
     user_id    INT UNSIGNED NOT NULL,
@@ -115,7 +111,7 @@ CREATE TABLE favorites (
         REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_favorites_spot FOREIGN KEY (spot_id)
         REFERENCES spots (id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE spot_accommodation_types (
     spot_id               INT UNSIGNED     NOT NULL,
@@ -125,7 +121,7 @@ CREATE TABLE spot_accommodation_types (
         REFERENCES spots (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_sat_accommodation_type FOREIGN KEY (accommodation_type_id)
         REFERENCES accommodation_types (id) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE spot_amenities (
     spot_id    INT UNSIGNED     NOT NULL,
@@ -135,11 +131,9 @@ CREATE TABLE spot_amenities (
         REFERENCES spots (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_sa_amenity FOREIGN KEY (amenity_id)
         REFERENCES amenities (id) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- ---------------------------------------------------------------------
 -- Données de référence
--- ---------------------------------------------------------------------
 
 INSERT INTO cantons (code, name) VALUES
 ('AG','Argovie'), ('AI','Appenzell Rhodes-Intérieures'), ('AR','Appenzell Rhodes-Extérieures'),
@@ -158,9 +152,7 @@ INSERT INTO accommodation_types (id, code) VALUES
 INSERT INTO amenities (id, code) VALUES
 (1,'water'), (2,'toilets'), (3,'fire'), (4,'electricity');
 
--- ---------------------------------------------------------------------
 -- Données de test
--- ---------------------------------------------------------------------
 
 -- Hash de "Password123!" (password_hash, PASSWORD_DEFAULT)
 SET @pwd = '$2y$10$qUGC1AW4htY0fTvVr9iMWuQjSHMBQhx3q07v7xnnAMI.zpt6FQHom';

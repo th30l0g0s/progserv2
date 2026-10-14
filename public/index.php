@@ -1,3 +1,4 @@
+<h1>test</h1>
 <?php
 // Page de test : BDD + envoi de mail
 $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', getenv('DB_HOST'), getenv('DB_NAME'));
