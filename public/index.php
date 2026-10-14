@@ -3,8 +3,8 @@
 $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', getenv('DB_HOST'), getenv('DB_NAME'));
 try {
     $pdo = new PDO($dsn, getenv('DB_USER'), getenv('DB_PASSWORD'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-    $msg = $pdo->query('SELECT contenu FROM messages LIMIT 1')->fetchColumn();
-    echo "<p>BDD : $msg</p>";
+    $nb = $pdo->query('SELECT COUNT(*) FROM spots')->fetchColumn();
+    echo "<p>BDD : connexion OK — $nb lieux</p>";
 } catch (PDOException $e) {
     echo '<p>Erreur BDD : ' . htmlspecialchars($e->getMessage()) . '</p>';
 }
