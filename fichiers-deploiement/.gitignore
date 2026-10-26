@@ -1,4 +1,0 @@
-.env
-src/vendor/
-config.local.php
-.DS_Store
