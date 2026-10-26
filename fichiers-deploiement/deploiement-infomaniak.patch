@@ -1,0 +1,261 @@
+From 6019fb3293ef98ebfeb9110d56732083f951bb89 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 26 Oct 2026 14:15:12 +0100
+Subject: [PATCH] =?UTF-8?q?Pr=C3=A9paration=20du=20d=C3=A9ploiement=20Info?=
+ =?UTF-8?q?maniak=20(config=20hors=20Docker,=20.htaccess,=20script=20rsync?=
+ =?UTF-8?q?,=20guide)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01WExpETSBCmkoJwUwNVD5vJ
+---
+ .gitignore               |  2 +
+ DEPLOIEMENT.md           | 79 ++++++++++++++++++++++++++++++++++++++++
+ config.local.example.php | 12 ++++++
+ deploy/deploy.sh         | 25 +++++++++++++
+ public/.htaccess         | 13 +++++++
+ public/index.php         | 15 +++++---
+ src/config.php           | 31 ++++++++++++++++
+ 7 files changed, 172 insertions(+), 5 deletions(-)
+ create mode 100644 DEPLOIEMENT.md
+ create mode 100644 config.local.example.php
+ create mode 100755 deploy/deploy.sh
+ create mode 100644 public/.htaccess
+ create mode 100644 src/config.php
+
+diff --git a/.gitignore b/.gitignore
+index 728f57e..4509fad 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,4 @@
+ .env
+ src/vendor/
++config.local.php
++.DS_Store
+diff --git a/DEPLOIEMENT.md b/DEPLOIEMENT.md
+new file mode 100644
+index 0000000..bff4e39
+--- /dev/null
++++ b/DEPLOIEMENT.md
+@@ -0,0 +1,79 @@
++# Déploiement site4night sur Infomaniak
++
++Cible : `https://progserv2.laurenternst.ch`
++Durée totale estimée : **45 à 60 min** la première fois, **2 min** ensuite (étape 7 seule).
++
++## Ce qui change entre Docker (local) et Infomaniak (production)
++
++| Service Docker | Équivalent Infomaniak |
++|---|---|
++| `web` (Apache + PHP 8.5) | Hébergement web, PHP réglé dans le Manager |
++| `db` (MariaDB 11.4) | Base MariaDB créée dans le Manager (hôte `XXXX.myd.infomaniak.com`) |
++| `phpmyadmin` | phpMyAdmin fourni par Infomaniak |
++| `mailpit` | Pas d'équivalent : en prod, envoi réel via SMTP Infomaniak (plus tard, avec PHPMailer) |
++| Variables d'environnement | Fichier `config.local.php` sur le serveur, hors de `public/` |
++
++## Étapes
++
++### 1. Ajouter le sous-domaine comme site — 10 min
++1. Manager Infomaniak → Hébergement web → cliquer sur l'hébergement → **Ajouter**.
++2. Choisir « espace vide », puis l'option **sous-domaine** de `laurenternst.ch` → saisir `progserv2`.
++3. Options avancées → **Définir l'emplacement manuellement** → dossier : `/sites/progserv2/public`.
++   - Raison : seul `public/` doit être accessible depuis le web. `src/` et `config.local.php` restent invisibles.
++4. Si le DNS de `laurenternst.ch` n'est pas géré chez Infomaniak : créer l'entrée chez le registrar.
++
++### 2. Régler PHP — 2 min
++1. Fiche du site → « Plus d'informations » → **Modifier** → PHP **8.5** (comme le Dockerfile).
++2. ⚠️ Infomaniak indique qu'on ne peut pas redescendre de version ensuite.
++3. Si 8.5 n'est pas proposé sur ta formule : prendre 8.4 (le code actuel n'utilise rien de spécifique à 8.5).
++
++### 3. Activer le certificat SSL — 5 min (+ délai de propagation)
++1. Fiche du site → SSL → certificat Let's Encrypt gratuit.
++2. Le `.htaccess` force déjà la redirection HTTP → HTTPS.
++
++### 4. Créer la base de données — 5 min
++1. Manager → Hébergement → **Bases de données** → Ajouter une base de données (ex. `site4night`).
++2. Créer un utilisateur avec mot de passe fort, droits lecture + écriture sur cette base.
++3. Noter les 4 valeurs exactes affichées : **hôte**, **nom de la base** (avec préfixe), **utilisateur** (avec préfixe), **mot de passe**.
++
++### 5. Importer le schéma et les données — 5 min
++1. Ouvrir phpMyAdmin depuis le Manager → sélectionner la base.
++2. Onglet **Importer** → fichier `docker/db/init/02-site4night.sql`.
++3. Vérifier : 10 tables, dont `spots` avec des lignes.
++
++> ⚠️ **Sécurité** : ce fichier crée un compte `admin` dont le mot de passe (`Password123!`) est écrit en clair dans un commentaire du dépôt **public** GitHub. Dès que la connexion sera codée, n'importe qui pourra se connecter en admin sur le site en ligne. Avant la mise en ligne publique : changer ce mot de passe en prod, ou importer une version sans les utilisateurs de test.
++
++### 6. Activer SSH et préparer la configuration — 10 min
++1. Manager → Hébergement → **FTP / SSH** → créer un compte, activer SSH. Noter utilisateur et hôte.
++2. Sur le Mac, tester : `ssh XXXX_user@XXXX.ftp.infomaniak.com`
++3. Sur le serveur, créer `sites/progserv2/config.local.php` à partir de `config.local.example.php` et remplir les 4 valeurs de l'étape 4 (`APP_ENV` = `prod`).
++   - Ce fichier n'est jamais envoyé par le script ni commité (`.gitignore`).
++
++### 7. Envoyer le code — 2 min (à chaque mise à jour)
++1. Ouvrir `deploy/deploy.sh` et remplacer `SSH_USER` et `SSH_HOST` (une seule fois).
++2. Simulation : `./deploy/deploy.sh --dry` → vérifier la liste des fichiers.
++3. Envoi réel : `./deploy/deploy.sh`
++
++Le script n'envoie que `public/` et `src/` (+ `config.local.example.php`). Docker, maquettes, BDD et Markdown restent sur le Mac.
++
++> Sans SSH : glisser `public/`, `src/` dans `sites/progserv2/` avec un client SFTP (Cyberduck, Transmit) ou le FTP Manager.
++
++### 8. Vérifier — 2 min
++- `https://progserv2.laurenternst.ch` affiche « BDD : connexion OK — N lieux ».
++- `https://progserv2.laurenternst.ch/src/config.php` doit renvoyer une erreur 404 (preuve que la racine web est bien `public/`).
++- En cas de « Erreur BDD » : revoir les 4 valeurs de `config.local.php` (hôte et préfixes surtout).
++
++## Fichiers modifiés dans le dépôt
++
++- `src/config.php` (nouveau) : lit les variables d'environnement (Docker) puis, à défaut, `config.local.php` (Infomaniak).
++- `config.local.example.php` (nouveau) : modèle à copier sur le serveur.
++- `public/index.php` : utilise `src/config.php` ; en prod, masque le détail des erreurs BDD et le lien de test mail.
++- `public/.htaccess` (nouveau) : HTTPS forcé (sauf `localhost`), erreurs masquées, fichiers cachés bloqués.
++- `deploy/deploy.sh` (nouveau) : envoi par rsync/SSH, avec mode simulation.
++- `.gitignore` : ajoute `config.local.php` et `.DS_Store`.
++
++Le fonctionnement local avec `docker compose up` reste identique.
++
++## Plus tard (pas bloquant pour ce déploiement)
++- E-mails (inscription, validation de lieux) : PHPMailer + SMTP `mail.infomaniak.com`, avec une adresse e-mail réelle du domaine.
++- `docker/php/php.ini` a `display_errors = On` : correct en local. En prod, ce fichier n'est pas utilisé ; vérifier dans le Manager (réglages PHP du site) que `display_errors` est désactivé, la ligne du `.htaccess` ne s'appliquant que si PHP tourne en module Apache.
+diff --git a/config.local.example.php b/config.local.example.php
+new file mode 100644
+index 0000000..5389376
+--- /dev/null
++++ b/config.local.example.php
+@@ -0,0 +1,12 @@
++<?php
++// Copier en config.local.php sur le serveur (à côté de public/ et src/), puis remplir.
++// Ne JAMAIS commiter config.local.php.
++return [
++    'APP_ENV'     => 'prod',
++    'DB_HOST'     => 'XXXX.myd.infomaniak.com', // Manager > Bases de données > infos de configuration
++    'DB_NAME'     => 'XXXX_site4night',
++    'DB_USER'     => 'XXXX_site4night',
++    'DB_PASSWORD' => 'mot-de-passe-fort',
++    'SMTP_HOST'   => 'mail.infomaniak.com',
++    'SMTP_PORT'   => '465',
++];
+diff --git a/deploy/deploy.sh b/deploy/deploy.sh
+new file mode 100755
+index 0000000..e00e787
+--- /dev/null
++++ b/deploy/deploy.sh
+@@ -0,0 +1,25 @@
++#!/usr/bin/env bash
++# Envoie le code sur Infomaniak via SSH/rsync (depuis le Mac).
++# Usage : ./deploy/deploy.sh          (envoi réel)
++#         ./deploy/deploy.sh --dry    (simulation, n'envoie rien)
++set -euo pipefail
++
++# À ADAPTER (Manager Infomaniak > Hébergement > FTP / SSH)
++SSH_USER="XXXX_user"
++SSH_HOST="XXXX.ftp.infomaniak.com"
++REMOTE_DIR="sites/progserv2"   # dossier du site ; son sous-dossier public/ = racine web
++
++DRY=""
++[[ "${1:-}" == "--dry" ]] && DRY="--dry-run" && echo ">> Simulation"
++
++cd "$(dirname "$0")/.."
++
++rsync -avz --delete $DRY \
++  --exclude '.git/' --exclude '.gitignore' --exclude '.env' \
++  --exclude 'docker/' --exclude 'docker-compose.yml' \
++  --exclude 'maquette/' --exclude 'bdd/' --exclude 'deploy/' \
++  --exclude '*.md' --exclude '.DS_Store' \
++  --exclude 'config.local.php' \
++  ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
++
++echo ">> Terminé. Test : https://progserv2.laurenternst.ch"
+diff --git a/public/.htaccess b/public/.htaccess
+new file mode 100644
+index 0000000..ac33e43
+--- /dev/null
++++ b/public/.htaccess
+@@ -0,0 +1,13 @@
++# Production : ne jamais afficher les erreurs PHP aux visiteurs
++<IfModule mod_php.c>
++    php_flag display_errors Off
++</IfModule>
++
++# Forcer HTTPS en production (ignoré sur localhost / Docker)
++RewriteEngine On
++RewriteCond %{HTTPS} !=on
++RewriteCond %{HTTP_HOST} !^localhost [NC]
++RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
++
++# Bloquer l'accès aux fichiers cachés (.env, .git…)
++RedirectMatch 404 /\..*$
+diff --git a/public/index.php b/public/index.php
+index acf9af9..0a800ea 100644
+--- a/public/index.php
++++ b/public/index.php
+@@ -1,17 +1,22 @@
+ <h1>test</h1>
+ <?php
+ // Page de test : BDD + envoi de mail
+-$dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', getenv('DB_HOST'), getenv('DB_NAME'));
++$config = require __DIR__ . '/../src/config.php';
++$isProd = $config['APP_ENV'] === 'prod';
++
++$dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $config['DB_HOST'], $config['DB_NAME']);
+ try {
+-    $pdo = new PDO($dsn, getenv('DB_USER'), getenv('DB_PASSWORD'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
++    $pdo = new PDO($dsn, $config['DB_USER'], $config['DB_PASSWORD'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+     $nb = $pdo->query('SELECT COUNT(*) FROM spots')->fetchColumn();
+     echo "<p>BDD : connexion OK — $nb lieux</p>";
+ } catch (PDOException $e) {
+-    echo '<p>Erreur BDD : ' . htmlspecialchars($e->getMessage()) . '</p>';
++    // En production, on n'affiche pas le détail (il peut révéler l'hôte ou l'utilisateur)
++    error_log($e->getMessage());
++    echo $isProd ? '<p>Erreur BDD</p>' : '<p>Erreur BDD : ' . htmlspecialchars($e->getMessage()) . '</p>';
+ }
+ 
+-if (isset($_GET['mail'])) {
++if (!$isProd && isset($_GET['mail'])) {
+     $ok = mail('test@example.com', 'Test Mailpit', 'Mail envoyé depuis PHP ' . PHP_VERSION);
+     echo $ok ? '<p>Mail envoyé → <a href="http://localhost:8025">Mailpit</a></p>' : '<p>Échec envoi mail</p>';
+ }
+-echo '<p>PHP ' . PHP_VERSION . ' — <a href="?mail=1">Envoyer un mail de test</a></p>';
++echo '<p>PHP ' . PHP_VERSION . ($isProd ? '' : ' — <a href="?mail=1">Envoyer un mail de test</a>') . '</p>';
+diff --git a/src/config.php b/src/config.php
+new file mode 100644
+index 0000000..1d7afde
+--- /dev/null
++++ b/src/config.php
+@@ -0,0 +1,31 @@
++<?php
++/**
++ * Configuration centrale.
++ * - En local (Docker) : les valeurs viennent des variables d'environnement (docker-compose.yml).
++ * - En production (Infomaniak) : pas de Docker, donc les valeurs viennent de
++ *   config.local.php, placé à la racine du projet (hors du dossier public/) et jamais commité.
++ */
++
++$local = __DIR__ . '/../config.local.php';
++$fileConfig = is_file($local) ? require $local : [];
++
++if (!function_exists('cfg')) {
++function cfg(string $key, array $fileConfig, ?string $default = null): ?string
++{
++    $env = getenv($key);
++    if ($env !== false && $env !== '') {
++        return $env;
++    }
++    return $fileConfig[$key] ?? $default;
++}
++}
++
++return [
++    'APP_ENV'     => cfg('APP_ENV', $fileConfig, 'dev'),
++    'DB_HOST'     => cfg('DB_HOST', $fileConfig),
++    'DB_NAME'     => cfg('DB_NAME', $fileConfig),
++    'DB_USER'     => cfg('DB_USER', $fileConfig),
++    'DB_PASSWORD' => cfg('DB_PASSWORD', $fileConfig),
++    'SMTP_HOST'   => cfg('SMTP_HOST', $fileConfig),
++    'SMTP_PORT'   => cfg('SMTP_PORT', $fileConfig),
++];
+-- 
+2.43.0
+
