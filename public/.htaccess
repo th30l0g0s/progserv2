@@ -1,0 +1,13 @@
+# Production : ne jamais afficher les erreurs PHP aux visiteurs
+<IfModule mod_php.c>
+    php_flag display_errors Off
+</IfModule>
+
+# Forcer HTTPS en production (ignoré sur localhost / Docker)
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP_HOST} !^localhost [NC]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Bloquer l'accès aux fichiers cachés (.env, .git…)
+RedirectMatch 404 /\..*$
