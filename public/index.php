@@ -21,11 +21,10 @@ $results = $stmt->fetchAll();
 <!DOCTYPE html>
 <html lang="fr">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProgServ2 Course PHP Template</title>
-</head>
+<?php render('head', [
+    'title' => "Page d'accueil | Plac4night",
+    'destription' => "Place4night - Gestionnaire des places pour passer la nuit - Page d'accueil",
+]); ?>
 
 <body>
     <h1>ProgServ2 Course PHP Template</h1>

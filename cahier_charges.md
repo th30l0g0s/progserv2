@@ -130,30 +130,43 @@ publication.
 6. Rédiger / modifier un avis.
 7. _(Administrateur)_ Modération des lieux.
 
-## 6. Modèle de données (première ébauche)
+## 6. Modèle de données
 
-| Table                      | Contenu principal                                                                                                               | Relations                                               |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `users`                    | id, username, email, password_hash, role, language, created_at, updated_at                                                      | —                                                       |
-| `spots`                    | id, name, description, latitude, longitude, canton, altitude, access_type, is_free, status, refusal_reason, created_at, updated_at, user_id | N:1 avec `users` (auteur)                               |
-| `accommodation_types`      | id, code (tent, 4x4, campervan)                                                                                                 | —                                                       |
-| `spot_accommodation_types` | spot_id, accommodation_type_id                                                                                                  | N:N entre `spots` et `accommodation_types`              |
-| `amenities`                | id, code (water, toilets, fire, electricity…)                                                                                   | —                                                       |
-| `spot_amenities`           | spot_id, amenity_id                                                                                                             | N:N entre `spots` et `amenities`                        |
-| `reviews`                  | id, spot_id, user_id, rating, comment, visit_date, created_at                                                                   | N:1 avec `spots` et `users`, unicité (spot_id, user_id) |
-| `favorites`                | user_id, spot_id, created_at                                                                                                    | N:N entre `users` et `spots` — _optionnel_              |
+Diagrammes (draw.io, modifiables) : [MCD](docs/mcd_site4night.drawio.svg) ·
+[MLD](docs/mld_site4night.drawio.svg) · [MPD](docs/mpd_site4night.drawio.svg).
+Script de création : [`src/db/script.sql`](src/db/script.sql).
+
+| Table                      | Contenu principal                                                                                                                                                  | Relations                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `users`                    | id, username, email, password_hash, role, language, created_at, updated_at · _optionnel :_ is_active, email_confirmed, confirmation_token                           | —                                                          |
+| `spots`                    | id, name, description, latitude, longitude, altitude, is_free, status, refusal_reason, created_at, updated_at, user_id, canton_code, access_type_id                  | N:1 avec `users` (auteur), `cantons`, `access_types`       |
+| `cantons`                  | code (VD, GE…), name — liste fixe des 26 cantons                                                                                                                   | —                                                          |
+| `access_types`             | id, code (paved, track, trail)                                                                                                                                     | —                                                          |
+| `accommodation_types`      | id, code (tent, 4x4, campervan)                                                                                                                                    | —                                                          |
+| `spot_accommodation_types` | spot_id, accommodation_type_id                                                                                                                                     | N:N entre `spots` et `accommodation_types` (au moins 1)    |
+| `amenities`                | id, code (water, toilets, fire, electricity)                                                                                                                       | —                                                          |
+| `spot_amenities`           | spot_id, amenity_id                                                                                                                                                | N:N entre `spots` et `amenities`                           |
+| `reviews`                  | id, rating, comment, visit_date, created_at, user_id, spot_id                                                                                                      | N:1 avec `users` et `spots`, unicité (user_id, spot_id)    |
+| `favorites`                | user_id, spot_id, created_at                                                                                                                                       | N:N entre `users` et `spots` — _optionnel_                 |
 
 Valeurs énumérées :
 
-- `users.role` : `user`, `admin`.
+- `users.role` : `user`, `admin` · `users.language` : `fr`, `en`.
 - `spots.status` : `pending`, `published`, `refused`.
-- `spots.access_type` : `paved`, `track`, `trail`.
 
-Suppression d'un lieu : suppression en cascade des avis associés
-(`ON DELETE CASCADE`). La table `favorites` n'est créée que si la fonctionnalité
-optionnelle est réalisée.
+Règles d'intégrité :
 
-Les diagrammes MCD, MLD et MPD seront fournis à la séance 4.
+- Note d'un avis entre 1 et 5 ; motif de refus obligatoire si le lieu est
+  refusé ; latitude et longitude dans les bornes GPS (contraintes `CHECK`).
+- Suppression d'un lieu ou d'un utilisateur : suppression en cascade de ses
+  avis et favoris. Suppression d'un utilisateur : ses lieux sont conservés,
+  sans auteur (`ON DELETE SET NULL`).
+- Un canton, un type d'accès, d'hébergement ou d'équipement utilisé ne peut pas
+  être supprimé (`ON DELETE RESTRICT`).
+- La note moyenne d'un lieu est calculée, pas stockée.
+- Les éléments optionnels (favoris, désactivation de compte, vérification de
+  l'e-mail) sont créés dans la base mais utilisés seulement si la
+  fonctionnalité est réalisée.
 
 ## 7. Contraintes techniques
 
@@ -225,6 +238,7 @@ Conformément aux règles du projet, toute aide externe est déclarée ici
 | Date       | Outil         | Élément concerné     | Utilisation et justification                                                                                                                                                                                                         |
 | ---------- | ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 19.11.2026 | Claude (Anthropic) | `cahier_charges.md` | Relecture du cahier des charges par rapport aux critères officiels du projet, ajout de la correspondance avec la grille, précision du modèle de données et des e-mails. Contenu relu, compris et validé par l'auteur. |
+| 20.11.2026 | Claude (Anthropic) | Diagrammes, `src/db/script.sql`, § 6 | Ajout de `updated_at` et du marquage « optionnel » dans les diagrammes réalisés par l'auteur, correction de deux notes, rédaction et test du script SQL à partir du MPD, mise à jour du § 6. |
 
 ## 12. Bilan final
 
